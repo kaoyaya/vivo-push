@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	gouuid "github.com/satori/go.uuid"
+	gouuid "github.com/gofrs/uuid"
 )
 
 //单推
