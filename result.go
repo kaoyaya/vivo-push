@@ -12,7 +12,7 @@ type SendResult struct {
 
 type BatchStatusResult struct {
 	ResultItem
-	statistics []TaskData `json:"statistics"`
+	Statistics []TaskData `json:"statistics"`
 }
 
 type TaskData struct {

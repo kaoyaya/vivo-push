@@ -2,9 +2,7 @@ package vivopush
 
 const (
 	ProductionHost = "https://api-push.vivo.com.cn"
-)
 
-const (
 	AuthURL            = "/message/auth"            // 推送鉴权接口
 	SendURL            = "/message/send"            // 单推接口
 	SaveListPayloadURL = "/message/saveListPayload" // 保存群推消息公共体接口
@@ -14,6 +12,6 @@ const (
 )
 
 var (
-	PostRetryTimes       = 3         //重试次数
-	MaxTimeToLive  int64 = 3600 * 24 //消息保留时长
+	_postRetryTimes       = 3         //重试次数
+	_maxTimeToLive  int64 = 3600 * 24 //消息保留时长
 )

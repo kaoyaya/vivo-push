@@ -57,7 +57,7 @@ func NewClient(appId, appKey, appSecret string) (*VivoPush, error) {
 }
 
 //----------------------------------------Token----------------------------------------//
-//获取token  返回的expiretime 秒  当过期的时候
+// 获取token  返回的expiretime 秒  当过期的时候
 func (vc *VivoClient) GetToken() (string, error) {
 	now := time.Now().UnixNano() / 1e6
 	if authToken != nil {
@@ -79,6 +79,9 @@ func (vc *VivoClient) GetToken() (string, error) {
 		return "", err
 	}
 	req, err := http.NewRequest("POST", ProductionHost+AuthURL, bytes.NewReader(formData))
+	if err != nil {
+		return "", err
+	}
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -100,8 +103,9 @@ func (vc *VivoClient) GetToken() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// 1小时有效
 	authToken.token = token
-	authToken.valid_time = now + 3600000 //1小时有效
+	authToken.valid_time = now + 3600000
 	return token, nil
 }
 
@@ -239,12 +243,15 @@ func (v *VivoPush) doPost(url string, formData []byte) ([]byte, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("authToken", v.Auth_token)
 	client := &http.Client{}
+
+	// TODO:@klaus 这里重试逻辑写得不好
+	// 需要抽出一个专门的 client 管理  http 请求
 	tryTime := 0
 tryAgain:
 	resp, err = client.Do(req)
 	if err != nil {
 		tryTime += 1
-		if tryTime < PostRetryTimes {
+		if tryTime < _postRetryTimes {
 			goto tryAgain
 		}
 		return nil, err
@@ -260,14 +267,20 @@ tryAgain:
 }
 
 func (v *VivoPush) doGet(url string, params string) ([]byte, error) {
-	var result []byte
-	var req *http.Request
-	var resp *http.Response
-	var err error
+	var (
+		result []byte
+		req    *http.Request
+		resp   *http.Response
+		err    error
+	)
 	req, err = http.NewRequest("GET", url+params, nil)
+	if err != nil {
+		return nil, err
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("authToken", v.Auth_token)
 
+	// TODO:@klaus 重用 client
 	client := &http.Client{}
 	resp, err = client.Do(req)
 	if err != nil {

@@ -4,13 +4,13 @@ import (
 	"testing"
 )
 
-var appId string = "your appId"
-var appKey string = "your appId"
-var appSecret string = "your appSecret"
+var appId = "your appId"
+var appKey = "your appId"
+var appSecret = "your appSecret"
 
-var msg1 *Message = NewVivoMessage("hi baby1", "hi1")
+var msg1 = NewVivoMessage("hi baby1", "hi1")
 
-var regID1 string = "your regID"
+var regID1 = "your regID"
 
 func TestMiPush_Send(t *testing.T) {
 	client, err := NewClient(appId, appKey, appSecret)
