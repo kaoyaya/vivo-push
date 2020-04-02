@@ -7,15 +7,17 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/bitly/go-simplejson"
 )
 
-var authToken *AuthToken = new(AuthToken)
+var authToken = new(AuthToken)
 
 type VivoClient struct {
 	AppId     string
@@ -31,16 +33,20 @@ type VivoTokenPar struct {
 }
 
 type AuthToken struct {
-	token      string
-	valid_time int64
+	token     string
+	validTime int64
 }
 
 type VivoPush struct {
-	host       string
-	Auth_token string
+	host      string
+	AuthToken string
+
+	client *VivoClient
+
+	mu *sync.Mutex
 }
 
-func NewClient(appId, appKey, appSecret string) (*VivoPush, error) {
+func NewClient(appId, appKey, appSecret string, refreshInterval int) (*VivoPush, error) {
 	vc := &VivoClient{
 		appId,
 		appKey,
@@ -50,18 +56,44 @@ func NewClient(appId, appKey, appSecret string) (*VivoPush, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &VivoPush{
-		host:       ProductionHost,
-		Auth_token: token,
-	}, nil
+
+	client := &VivoPush{
+		host:      ProductionHost,
+		AuthToken: token,
+		client:    vc,
+	}
+
+	if refreshInterval <= 0 {
+		refreshInterval = 300
+	}
+
+	go client.refreshToken(refreshInterval)
+
+	return client, nil
 }
 
-//----------------------------------------Token----------------------------------------//
-// 获取token  返回的expiretime 秒  当过期的时候
+func (v *VivoPush) refreshToken(interval int) {
+	tick := time.Tick(time.Duration(interval) * time.Second)
+	for {
+		select {
+		case <-tick:
+			token, err := v.client.GetToken()
+			if err != nil {
+				log.Printf("force refresh vivo token err: %+v", err)
+			}
+			v.mu.Lock()
+			v.AuthToken = token
+			v.mu.Unlock()
+			log.Printf("refresh vivo push token at: %s", time.Now().String())
+		}
+	}
+}
+
+// 获取token  返回的 expiretime 秒  当过期的时候
 func (vc *VivoClient) GetToken() (string, error) {
 	now := time.Now().UnixNano() / 1e6
 	if authToken != nil {
-		if authToken.valid_time > now {
+		if authToken.validTime > now {
 			return authToken.token, nil
 		}
 	}
@@ -105,7 +137,7 @@ func (vc *VivoClient) GetToken() (string, error) {
 	}
 	// 1小时有效
 	authToken.token = token
-	authToken.valid_time = now + 3600000
+	authToken.validTime = now + 3600000
 	return token, nil
 }
 
@@ -157,12 +189,12 @@ func (v *VivoPush) SendList(msg *MessagePayload, regIds []string) (*SendResult, 
 	if res.Result != 0 {
 		return nil, errors.New(res.Desc)
 	}
-	bytes, err := json.Marshal(NewListMessage(regIds, res.TaskId))
+	bytesData, err := json.Marshal(NewListMessage(regIds, res.TaskId))
 	if err != nil {
 		return nil, err
 	}
 	//推送
-	res2, err := v.doPost(v.host+PushToListURL, bytes)
+	res2, err := v.doPost(v.host+PushToListURL, bytesData)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +273,7 @@ func (v *VivoPush) doPost(url string, formData []byte) ([]byte, error) {
 
 	req, err = http.NewRequest("POST", url, bytes.NewReader(formData))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("authToken", v.Auth_token)
+	req.Header.Set("authToken", v.AuthToken)
 	client := &http.Client{}
 
 	// TODO:@klaus 这里重试逻辑写得不好
@@ -278,7 +310,7 @@ func (v *VivoPush) doGet(url string, params string) ([]byte, error) {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("authToken", v.Auth_token)
+	req.Header.Set("authToken", v.AuthToken)
 
 	// TODO:@klaus 重用 client
 	client := &http.Client{}

@@ -4,16 +4,17 @@ import (
 	"testing"
 )
 
-var appId = "your appId"
-var appKey = "your appId"
-var appSecret = "your appSecret"
+var (
+	appId     = "your appId"
+	appKey    = "your appId"
+	appSecret = "your appSecret"
+	regID1    = "your regID"
+)
 
 var msg1 = NewVivoMessage("hi baby1", "hi1")
 
-var regID1 = "your regID"
-
 func TestMiPush_Send(t *testing.T) {
-	client, err := NewClient(appId, appKey, appSecret)
+	client, err := NewClient(appId, appKey, appSecret, 1)
 	if err != nil {
 		t.Errorf("TestMiPush_Send failed :%v\n", err)
 	}
@@ -25,7 +26,7 @@ func TestMiPush_Send(t *testing.T) {
 }
 
 func TestMiPush_GetMessageStatusByJobKey(t *testing.T) {
-	client, err := NewClient(appId, appKey, appSecret)
+	client, err := NewClient(appId, appKey, appSecret, 1)
 	if err != nil {
 		t.Errorf("TestMiPush_Send failed :%v\n", err)
 	}
